@@ -1,15 +1,29 @@
 #! /usr/bin/perl
 use JSON;
-($version_manifest_url)=@ARGV;
+($version_manifest_url,$manual_version)=@ARGV;
 if(!$version_manifest_url)
 {
-	die("NameProvider Data Generator, v1.0\nhttps://github.com/bilintsui/nameprovider-data-generator\n\nUsage: $0 <version_manifest_url>\n");
+	die(
+"NameProvider Data Generator, v1.1
+https://github.com/bilintsui/nameprovider-data-generator
+
+Usage: $0 <version_manifest_url> [manual_version]
+
+<version_manifest_url>	URL of a qualified version manifest. Usually fine to use the official one.
+			Official: https://piston-meta.mojang.com/mc/game/version_manifest.json
+[manual_version]	Optional, the exact game version used to generate data. Defaults to 0.
+			Number based on the order of versions in the file provided, start with 0.
+");
+}
+if(!$manual_version)
+{
+	$manual_version=0;
 }
 $version_manifest_raw=readpipe("curl -s '${version_manifest_url}'");
 $version_manifest=decode_json($version_manifest_raw);
-$version_id=$version_manifest->{versions}[0]->{id};
-$version_time=$version_manifest->{versions}[0]->{time};
-$version_json_url=$version_manifest->{versions}[0]->{url};
+$version_id=$version_manifest->{versions}[$manual_version]->{id};
+$version_time=$version_manifest->{versions}[$manual_version]->{time};
+$version_json_url=$version_manifest->{versions}[$manual_version]->{url};
 $version_json_raw=readpipe("curl -s '$version_json_url'");
 $version_json=decode_json($version_json_raw);
 $client_jar_url=$version_json->{downloads}->{client}->{url};
@@ -31,10 +45,10 @@ system("grep -P '^\\s+' zh_tw.json | sed -e 's/^\\s*\"//' -e 's/\":\\s*/\\t/' -e
 system("curl -o 'zh_hk.json' '$lang_zhhk_url'");
 system("grep -P '^\\s+' zh_hk.json | sed -e 's/^\\s*\"//' -e 's/\":\\s*/\\t/' -e 's/\",\$/\"/' | sort > col4.txt; rm zh_hk.json");
 system("./join.sh; rm col1.txt col2.txt col3.txt col4.txt");
-open DSTFD, ">output.txt";
+open DSTFD, ">output_$version_id.txt";
 print DSTFD "-- version: $version_id\n-- asset: $assetindex_url ($version_time)\nreturn {\n";
 close DSTFD;
-system("cat tmp.txt >> output.txt; rm tmp.txt");
-open DSTFD, ">>output.txt";
+system("cat tmp.txt >> output_$version_id.txt; rm tmp.txt");
+open DSTFD, ">>output_$version_id.txt";
 print DSTFD "}\n";
 close DSTFD;
