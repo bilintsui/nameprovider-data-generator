@@ -4,7 +4,7 @@ use JSON;
 if(!$version_manifest_url)
 {
 	die(
-"NameProvider Data Generator, v1.1
+"NameProvider Data Generator, v1.2
 https://github.com/bilintsui/nameprovider-data-generator
 
 Usage: $0 <version_manifest_url> [manual_version]
