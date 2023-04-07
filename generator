@@ -46,7 +46,7 @@ system("curl -o 'zh_hk.json' '$lang_zhhk_url'");
 system("grep -P '^\\s+' zh_hk.json | sed -e 's/^\\s*\"//' -e 's/\":\\s*/\\t/' -e 's/\",\$/\"/' | sort > col4.txt; rm zh_hk.json");
 system("./join.sh; rm col1.txt col2.txt col3.txt col4.txt");
 open DSTFD, ">output_$version_id.txt";
-print DSTFD "-- version: $version_id\n-- asset: $assetindex_url ($version_time)\nreturn {\n";
+print DSTFD "-- version: $version_id\n-- asset: $assetindex_url ($version_time)\nreturn {\n\t['_meta.version'] = '$version_id',\n";
 close DSTFD;
 system("cat tmp.txt >> output_$version_id.txt; rm tmp.txt");
 open DSTFD, ">>output_$version_id.txt";
