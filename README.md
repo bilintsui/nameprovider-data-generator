@@ -1,5 +1,5 @@
 # NameProvider Data Generator
-This is a simple data generator to generate data for [NameProvider module](https://minecraft.fandom.com/zh/wiki/Module:NameProvider).
+This is a simple data generator to generate data for [NameProvider module](https://zh.minecraft.wiki/w/Module:NameProvider).
 
 ## Dependency
 * `curl`
