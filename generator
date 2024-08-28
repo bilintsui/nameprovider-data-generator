@@ -1,54 +1,45 @@
-#! /usr/bin/perl
-use JSON;
-($version_manifest_url,$manual_version)=@ARGV;
-if(!$version_manifest_url)
-{
-	die(
-"NameProvider Data Generator, v1.2
-https://github.com/bilintsui/nameprovider-data-generator
+#! /bin/bash
+# NameProvider Data Generator, v2.0
 
-Usage: $0 <version_manifest_url> [manual_version]
+# Prep
+curl -Lo version_manifest.json https://piston-meta.mojang.com/mc/game/version_manifest.json
+jq .versions[0].url version_manifest.json | xargs curl -Lo version.json
+jq .downloads.client.url version.json | xargs curl -Lo client.jar
+unzip client.jar assets/minecraft/lang/en_us.json
+mv assets/minecraft/lang/en_us.json .
+rm -r assets
+jq .assetIndex.url version.json | xargs curl -Lo assets.json
+jq .objects assets.json | jq 'to_entries|.[]|select(.key=="minecraft/lang/zh_cn.json")|.value' | jq .hash | sed 's/"//g' | awk '{print "curl -Lo zh_cn.json https://resources.download.minecraft.net/"substr($0,1,2)"/"$0}' | bash
+jq .objects assets.json | jq 'to_entries|.[]|select(.key=="minecraft/lang/zh_tw.json")|.value' | jq .hash | sed 's/"//g' | awk '{print "curl -Lo zh_tw.json https://resources.download.minecraft.net/"substr($0,1,2)"/"$0}' | bash
+jq .objects assets.json | jq 'to_entries|.[]|select(.key=="minecraft/lang/zh_hk.json")|.value' | jq .hash | sed 's/"//g' | awk '{print "curl -Lo zh_hk.json https://resources.download.minecraft.net/"substr($0,1,2)"/"$0}' | bash
 
-<version_manifest_url>	URL of a qualified version manifest. Usually fine to use the official one.
-			Official: https://piston-meta.mojang.com/mc/game/version_manifest.json
-[manual_version]	Optional, the exact game version used to generate data. Defaults to 0.
-			Number based on the order of versions in the file provided, start with 0.
-");
-}
-if(!$manual_version)
-{
-	$manual_version=0;
-}
-$version_manifest_raw=readpipe("curl -s '${version_manifest_url}'");
-$version_manifest=decode_json($version_manifest_raw);
-$version_id=$version_manifest->{versions}[$manual_version]->{id};
-$version_time=$version_manifest->{versions}[$manual_version]->{time};
-$version_json_url=$version_manifest->{versions}[$manual_version]->{url};
-$version_json_raw=readpipe("curl -s '$version_json_url'");
-$version_json=decode_json($version_json_raw);
-$client_jar_url=$version_json->{downloads}->{client}->{url};
-system("curl -o 'client.jar' '$client_jar_url'; unzip -qq -d tmp client.jar; mv tmp/assets/minecraft/lang/en_us.json .; rm -r tmp client.jar");
-system("grep -P '^\\s+' en_us.json | sed -e 's/^\\s*\"//' -e 's/\":\\s*/\\t/' -e 's/\",\$/\"/' | sort > col1.txt; rm en_us.json");
-$assetindex_url=$version_json->{assetIndex}->{url};
-$assetindex_raw=readpipe("curl -s '$assetindex_url'");
-$assetindex=decode_json($assetindex_raw);
-$lang_zhcn_hash=$assetindex->{objects}->{'minecraft/lang/zh_cn.json'}->{hash};
-$lang_zhcn_url='https://resources.download.minecraft.net/'.substr($lang_zhcn_hash,0,2).'/'.$lang_zhcn_hash;
-$lang_zhtw_hash=$assetindex->{objects}->{'minecraft/lang/zh_tw.json'}->{hash};
-$lang_zhtw_url='https://resources.download.minecraft.net/'.substr($lang_zhtw_hash,0,2).'/'.$lang_zhtw_hash;
-$lang_zhhk_hash=$assetindex->{objects}->{'minecraft/lang/zh_hk.json'}->{hash};
-$lang_zhhk_url='https://resources.download.minecraft.net/'.substr($lang_zhhk_hash,0,2).'/'.$lang_zhhk_hash;
-system("curl -o 'zh_cn.json' '$lang_zhcn_url'");
-system("grep -P '^\\s+' zh_cn.json | sed -e 's/^\\s*\"//' -e 's/\":\\s*/\\t/' -e 's/\",\$/\"/' | sort > col2.txt; rm zh_cn.json");
-system("curl -o 'zh_tw.json' '$lang_zhtw_url'");
-system("grep -P '^\\s+' zh_tw.json | sed -e 's/^\\s*\"//' -e 's/\":\\s*/\\t/' -e 's/\",\$/\"/' | sort > col3.txt; rm zh_tw.json");
-system("curl -o 'zh_hk.json' '$lang_zhhk_url'");
-system("grep -P '^\\s+' zh_hk.json | sed -e 's/^\\s*\"//' -e 's/\":\\s*/\\t/' -e 's/\",\$/\"/' | sort > col4.txt; rm zh_hk.json");
-system("./join.sh; rm col1.txt col2.txt col3.txt col4.txt");
-open DSTFD, ">output_$version_id.txt";
-print DSTFD "-- version: $version_id\n-- asset: $assetindex_url ($version_time)\nreturn {\n\t['_meta.version'] = '$version_id',\n";
-close DSTFD;
-system("cat tmp.txt >> output_$version_id.txt; rm tmp.txt");
-open DSTFD, ">>output_$version_id.txt";
-print DSTFD "}\n";
-close DSTFD;
+# Lua headers
+echo -n '-- version: ' > result.lua
+jq .versions[0].id version_manifest.json | sed 's/"//g' >> result.lua
+echo -n '-- asset: ' >> result.lua
+jq .assetIndex.url version.json | sed 's/"//g' | tr '\n' ' ' >> result.lua
+echo -n '(' >> result.lua
+jq .versions[0].time version_manifest.json | sed 's/"//g' | tr '\n' ' ' >> result.lua
+sed -i 's/ $//' result.lua
+echo ')' >> result.lua
+echo 'return {' >> result.lua
+echo -en "\t[ '_meta.version' ] = \"" >> result.lua
+jq .versions[0].id version_manifest.json | sed 's/"//g' | tr '\n' ' ' >> result.lua
+sed -i 's/ $//' result.lua
+echo "\"," >> result.lua
+
+# Lua data table
+grep -vP '^({|})$' en_us.json | sed -e 's/^\s*"//' -e 's/",*$//' -e 's/":\s*"/\t/g' | sort -V > en_us.list
+grep -vP '^({|})$' zh_cn.json | sed -e 's/^\s*"//' -e 's/",*$//' -e 's/":\s*"/\t/g' | sort -V > zh_cn.list
+grep -vP '^({|})$' zh_tw.json | sed -e 's/^\s*"//' -e 's/",*$//' -e 's/":\s*"/\t/g' | sort -V > zh_tw.list
+grep -vP '^({|})$' zh_hk.json | sed -e 's/^\s*"//' -e 's/",*$//' -e 's/":\s*"/\t/g' | sort -V > zh_hk.list
+diff <(cut -f1 en_us.list | sort -V | uniq) <(cat zh_cn.list | cut -f1 | sort -V | uniq) | grep -P '^<' | sed 's/^<\s*//' | grep -Ff - en_us.list | cat - zh_cn.list | sort -V > zh_cn; mv zh_cn zh_cn.list
+diff <(cut -f1 en_us.list | sort -V | uniq) <(cat zh_tw.list | cut -f1 | sort -V | uniq) | grep -P '^<' | sed 's/^<\s*//' | grep -Ff - en_us.list | cat - zh_tw.list | sort -V > zh_tw; mv zh_tw zh_tw.list
+diff <(cut -f1 en_us.list | sort -V | uniq) <(cat zh_hk.list | cut -f1 | sort -V | uniq) | grep -P '^<' | sed 's/^<\s*//' | grep -Ff - en_us.list | cat - zh_hk.list | sort -V > zh_hk; mv zh_hk zh_hk.list
+join -t $'\t' en_us.list zh_cn.list | join -t $'\t' - zh_tw.list | join -t $'\t' - zh_hk.list | awk -F '\t' "{print \"\\t[ '\"\$1\"' ] = { \\\"\"\$2\"\\\", \\\"\"\$3\"\\\", \\\"\"\$4\"\\\", \\\"\"\$5\"\\\" },\"}" >> result.lua
+
+# Lua footers
+echo '}' >> result.lua
+
+# Cleanup
+rm *.json *.list *.jar
