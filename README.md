@@ -2,6 +2,7 @@
 This is a simple data generator to generate data for [NameProvider module](https://zh.minecraft.wiki/w/Module:NameProvider).
 
 ## Dependency
+* Linux
 * `curl`
 * `jq`
 * `unzip`
