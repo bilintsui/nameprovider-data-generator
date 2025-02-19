@@ -1,5 +1,5 @@
 #! /bin/bash
-# NameProvider Data Generator, v2.0
+# NameProvider Data Generator, v2.1
 
 # Prep
 curl -Lo version_manifest.json https://piston-meta.mojang.com/mc/game/version_manifest.json
