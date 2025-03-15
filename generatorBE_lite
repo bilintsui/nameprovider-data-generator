@@ -1,0 +1,74 @@
+#! /bin/bash
+# NameProvider Data Generator, v2.2
+
+# Preprocess, this requires en_US.lang, zh_CN.lang, zh_TW.lang in the working directory
+# This is the lite version, removed all strings that have '%'
+cat en_US.lang | dos2unix | grep -vP '^$' | grep -vP '^#' | sed -E -e 's/\s*#.*$//' -E -e 's/\s+$//' -E -e 's/= */=/' -E -e 's/\t//g' -E -e 's/=/\t/' | sort -V | uniq | grep -vF '%' > en_US
+cat zh_CN.lang | dos2unix | grep -vP '^$' | grep -vP '^#' | sed -E -e 's/\s*#.*$//' -E -e 's/\s+$//' -E -e 's/= */=/' -E -e 's/\t//g' -E -e 's/=/\t/' | sort -V | uniq | grep -vF '%' > zh_CN
+cat zh_TW.lang | dos2unix | grep -vP '^$' | grep -vP '^#' | sed -E -e 's/\s*#.*$//' -E -e 's/\s+$//' -E -e 's/= */=/' -E -e 's/\t//g' -E -e 's/=/\t/' | sort -V | uniq | grep -vF '%' > zh_TW
+
+# Concatenating & formatting
+# cat <(echo 'return {') <(sed -E "s/(.)$/\1' },/" <(sed -E "s/^(.)/\t[ '\1/" <(sed "s/\t/', '/g" <(sed "s/\t/' ] = { '/" <(join -t $'\t' <(join -t $'\t' en_US <(uniq <(sort -V <(cat <(grep -Pf <(sed -E 's/\|$//' <(awk '{print $0}' <(awk 'ORS="|" {print "^"$0"\\t"}' <(sed 's/^> //' <(grep -P '^> ' <(diff <(awk -F '\t' '{print $1}' zh_CN) <(awk -F '\t' '{print $1}' en_US))))))) en_US) zh_CN)))) <(uniq <(sort -V <(cat <(grep -Pf <(sed -E 's/\|$//' <(awk '{print $0}' <(awk 'ORS="|" {print "^"$0"\\t"}' <(sed 's/^> //' <(grep -P '^> ' <(diff <(awk -F '\t' '{print $1}' zh_TW) <(awk -F '\t' '{print $1}' en_US))))))) en_US) zh_TW)))))))) <(echo '}') > result.lua
+cat \
+	<(echo 'return {') \
+	<(sed -E "s/(.)$/\1' },/" \
+		<(sed -E "s/^(.)/\t[ '\1/" \
+			<(sed "s/\t/', '/g" \
+				<(sed "s/\t/' ] = { '/" \
+					<(join -t $'\t' \
+						<(join -t $'\t' en_US \
+							<(uniq \
+								<(sort -V \
+									<(cat \
+										<(grep -Pf \
+											<(sed -E 's/\|$//' \
+												<(awk '{print $0}' \
+													<(awk 'ORS="|" {print "^"$0"\\t"}' \
+														<(sed 's/^> //' \
+															<(grep -P '^> ' \
+																<(diff \
+																	<(awk -F '\t' '{print $1}' zh_CN) \
+																	<(awk -F '\t' '{print $1}' en_US)\
+																)\
+															)\
+														)\
+													)\
+												)\
+											) en_US\
+										) zh_CN\
+									)\
+								)\
+							)\
+						) \
+						<(uniq \
+							<(sort -V \
+								<(cat \
+									<(grep -Pf \
+										<(sed -E 's/\|$//' \
+											<(awk '{print $0}' \
+												<(awk 'ORS="|" {print "^"$0"\\t"}' \
+													<(sed 's/^> //' \
+														<(grep -P '^> ' \
+															<(diff \
+																<(awk -F '\t' '{print $1}' zh_TW) \
+																<(awk -F '\t' '{print $1}' en_US)\
+															)\
+														)\
+													)\
+												)\
+											)\
+										) en_US\
+									) zh_TW\
+								)\
+							)\
+						)\
+					)\
+				)\
+			)\
+		)\
+	) \
+	<(echo '}') \
+> result.lua
+
+# Cleanup
+rm en_US zh_CN zh_TW
