@@ -1,39 +1,30 @@
 #! /bin/bash
-# NameProvider Data Generator, v2.2
+# NameProvider Data Generator, v2.3
 
 # Prep
 curl -Lo version_manifest.json https://piston-meta.mojang.com/mc/game/version_manifest.json
-jq .versions[0].url version_manifest.json | xargs curl -Lo version.json
-jq .downloads.client.url version.json | xargs curl -Lo client.jar
-unzip client.jar assets/minecraft/lang/en_us.json
-mv assets/minecraft/lang/en_us.json .
-rm -r assets
-jq .assetIndex.url version.json | xargs curl -Lo assets.json
-jq .objects assets.json | jq 'to_entries|.[]|select(.key=="minecraft/lang/lzh.json")|.value' | jq .hash | sed 's/"//g' | awk '{print "curl -Lo lzh.json https://resources.download.minecraft.net/"substr($0,1,2)"/"$0}' | bash
+jq -r .versions[0].url version_manifest.json | xargs curl -Lo version.json
+jq -r .downloads.client.url version.json | xargs curl -Lo client.jar
+unzip -p client.jar assets/minecraft/lang/en_us.json > en_us.json
+jq -r .assetIndex.url version.json | xargs curl -Lo assets.json
+jq .objects assets.json | jq 'to_entries|.[]|select(.key=="minecraft/lang/lzh.json")|.value' | jq -r .hash | awk '{print "curl -Lo lzh.json https://resources.download.minecraft.net/"substr($0,1,2)"/"$0}' | bash
 
-# Lua headers
-echo -n '-- version: ' > result.lua
-jq .versions[0].id version_manifest.json | sed 's/"//g' >> result.lua
-echo -n '-- asset: ' >> result.lua
-jq .assetIndex.url version.json | sed 's/"//g' | tr '\n' ' ' >> result.lua
-echo -n '(' >> result.lua
-jq .versions[0].time version_manifest.json | sed 's/"//g' | tr '\n' ' ' >> result.lua
-sed -i 's/ $//' result.lua
-echo ')' >> result.lua
-echo 'return {' >> result.lua
-echo -en "\t[ '_meta.version' ] = \"" >> result.lua
-jq .versions[0].id version_manifest.json | sed 's/"//g' | tr '\n' ' ' >> result.lua
-sed -i 's/ $//' result.lua
-echo "\"," >> result.lua
+# Lua header
+paste <(jq -r .versions[0].id version_manifest.json) <(jq -r .assetIndex.url version.json) <(jq -r .versions[0].time version_manifest.json) | awk -F '\t' "{print \"-- version: \"\$1\"\n-- asset: \"\$2\" (\"\$3\")\nreturn {\n\t[ '_meta.version' ] = \\\"\"\$1\"\\\",\"}" > result.lua
 
 # Lua data table
-grep -vP '^({|})$' en_us.json | sed -e 's/^\s*"//' -e 's/",*$//' -e 's/":\s*"/\t/g' | sort -V > en_us.list
-grep -vP '^({|})$' lzh.json | sed -e 's/^\s*"//' -e 's/",*$//' -e 's/":\s*"/\t/g' | sort -V > lzh.list
-diff <(cut -f1 en_us.list | sort -V | uniq) <(cat lzh.list | cut -f1 | sort -V | uniq) | grep -P '^<' | sed 's/^<\s*//' | grep -Ff - en_us.list | cat - lzh.list | sort -V > lzh; mv lzh lzh.list
-join -t $'\t' en_us.list lzh.list | awk -F '\t' "{print \"\\t[ '\"\$1\"' ] = { \\\"\"\$2\"\\\", \\\"\"\$3\"\\\" },\"}" >> result.lua
+awk '{print $0}' en_us.json | sed 1d | tac | sed 1d | tac | sed -E -e 's/^\s+"//' -E -e 's/": /\t/' -E -e 's/,?$//' | sort -V | uniq | tee en_us.list | awk -F '\t' '{print $1}' > en_us.keys
+awk '{print $0}' lzh.json | sed 1d | tac | sed 1d | tac | sed -E -e 's/^\s+"//' -E -e 's/": /\t/' -E -e 's/,?$//' | sort -V | uniq | tee lzh.list | awk -F '\t' '{print $1}' > lzh.keys
 
-# Lua footers
+diff en_us.keys lzh.keys | grep -P '^>' | sed 's/^> //' | awk '{print "grep -P \"^"$0"\\t\" lzh.list"}' | sed "s/\"/'/g" | bash | grep -vFf - lzh.list > lzh
+diff en_us.keys lzh.keys | grep -P '^<' | sed 's/^< //' | awk '{print "grep -P \"^"$0"\\t\" en_us.list"}' | sed "s/\"/'/g" | bash | grep -Ff - en_us.list >> lzh
+
+join -t $'\t' <(sort -V en_us.list | uniq) <(sort -V lzh | uniq) > result.list
+
+sort -V en_us.keys | uniq | awk '{print "grep -P \"^"$0"\\t\" result.list"}' | sed "s/\"/'/g" | bash | sed -e "s/\t/' ] = { /" -e 's/\t/, /g' | awk "{print \"\\t[ '\"\$0\" },\"}" >> result.lua
+
+# Lua footer
 echo '}' >> result.lua
 
 # Cleanup
-rm *.json *.list *.jar
+rm *.jar *.json *.keys *.list lzh
