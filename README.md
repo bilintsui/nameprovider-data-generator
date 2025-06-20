@@ -13,7 +13,7 @@ This is a simple data generator to generate data for [NameProvider module](https
 ## Usage
 `./generator-*` or `./generatorBE_lite`
 
-Note that `generatorBE_lite` requires `en_US.lang`, `zh_CN.lang`, and 'zh_TW.lang' from Bedrock Edition packages in the working directory.
+Note that `generatorBE_lite` requires `en_US.lang`, `zh_CN.lang`, and `zh_TW.lang` from Bedrock Edition packages in the working directory.
 
 ## Output
 * A qualified Lua data table "result.lua", which located in the current working directory.
