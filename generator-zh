@@ -1,5 +1,5 @@
 #! /bin/bash
-# NameProvider Data Generator, v2.4
+# NameProvider Data Generator, v2.4.1
 
 # Prep
 curl -Lo version_manifest.json https://piston-meta.mojang.com/mc/game/version_manifest.json
@@ -15,10 +15,10 @@ jq .objects assets.json | jq 'to_entries|.[]|select(.key=="minecraft/lang/zh_hk.
 paste <(jq -r .versions[0].id version_manifest.json) <(jq -r .assetIndex.url version.json) <(jq -r .versions[0].time version_manifest.json) | awk -F '\t' "{print \"-- version: \"\$1\"\n-- asset: \"\$2\" (\"\$3\")\nreturn {\n\t[ '_meta.version' ] = \\\"\"\$1\"\\\",\"}" > result.lua
 
 # Lua data table
-awk '{print $0}' en_us.json | sed 1d | tac | sed 1d | tac | sed -E -e 's/^\s+"//' -E -e 's/": /\t/' -E -e 's/,?$//' | sort -V | uniq | tee en_us.list | awk -F '\t' '{print $1}' > en_us.keys
-awk '{print $0}' zh_cn.json | sed 1d | tac | sed 1d | tac | sed -E -e 's/^\s+"//' -E -e 's/": /\t/' -E -e 's/,?$//' | sort -V | uniq | tee zh_cn.list | awk -F '\t' '{print $1}' > zh_cn.keys
-awk '{print $0}' zh_tw.json | sed 1d | tac | sed 1d | tac | sed -E -e 's/^\s+"//' -E -e 's/": /\t/' -E -e 's/,?$//' | sort -V | uniq | tee zh_tw.list | awk -F '\t' '{print $1}' > zh_tw.keys
-awk '{print $0}' zh_hk.json | sed 1d | tac | sed 1d | tac | sed -E -e 's/^\s+"//' -E -e 's/": /\t/' -E -e 's/,?$//' | sort -V | uniq | tee zh_hk.list | awk -F '\t' '{print $1}' > zh_hk.keys
+awk '{print $0}' en_us.json | sed 1d | tac | sed 1d | tac | sed -E -e 's/^\s+"//' -E -e 's/"\s*:\s*/\t/' -E -e 's/,?$//' | sort -V | uniq | tee en_us.list | awk -F '\t' '{print $1}' > en_us.keys
+awk '{print $0}' zh_cn.json | sed 1d | tac | sed 1d | tac | sed -E -e 's/^\s+"//' -E -e 's/"\s*:\s*/\t/' -E -e 's/,?$//' | sort -V | uniq | tee zh_cn.list | awk -F '\t' '{print $1}' > zh_cn.keys
+awk '{print $0}' zh_tw.json | sed 1d | tac | sed 1d | tac | sed -E -e 's/^\s+"//' -E -e 's/"\s*:\s*/\t/' -E -e 's/,?$//' | sort -V | uniq | tee zh_tw.list | awk -F '\t' '{print $1}' > zh_tw.keys
+awk '{print $0}' zh_hk.json | sed 1d | tac | sed 1d | tac | sed -E -e 's/^\s+"//' -E -e 's/"\s*:\s*/\t/' -E -e 's/,?$//' | sort -V | uniq | tee zh_hk.list | awk -F '\t' '{print $1}' > zh_hk.keys
 
 diff en_us.keys zh_cn.keys | grep -P '^>' | sed 's/^> //' | awk '{print "grep -P \"^"$0"\\t\" zh_cn.list"}' | sed "s/\"/'/g" | bash | grep -vFf - zh_cn.list > zh_cn
 diff en_us.keys zh_cn.keys | grep -P '^<' | sed 's/^< //' | awk '{print "grep -P \"^"$0"\\t\" en_us.list"}' | sed "s/\"/'/g" | bash | grep -Ff - en_us.list >> zh_cn

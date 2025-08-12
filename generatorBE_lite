@@ -1,5 +1,5 @@
 #! /bin/bash
-# NameProvider Data Generator, v2.4
+# NameProvider Data Generator, v2.4.1
 
 # Preprocess, this requires en_US.lang, zh_CN.lang, zh_TW.lang in the working directory
 # This is the lite version, removed all strings that have '%'

@@ -1,5 +1,5 @@
 #! /bin/bash
-# NameProvider Data Generator, v2.4
+# NameProvider Data Generator, v2.4.1
 
 # Prep
 curl -Lo version_manifest.json https://piston-meta.mojang.com/mc/game/version_manifest.json
@@ -13,8 +13,8 @@ jq .objects assets.json | jq 'to_entries|.[]|select(.key=="minecraft/lang/lzh.js
 paste <(jq -r .versions[0].id version_manifest.json) <(jq -r .assetIndex.url version.json) <(jq -r .versions[0].time version_manifest.json) | awk -F '\t' "{print \"-- version: \"\$1\"\n-- asset: \"\$2\" (\"\$3\")\nreturn {\n\t[ '_meta.version' ] = \\\"\"\$1\"\\\",\"}" > result.lua
 
 # Lua data table
-awk '{print $0}' en_us.json | sed 1d | tac | sed 1d | tac | sed -E -e 's/^\s+"//' -E -e 's/": /\t/' -E -e 's/,?$//' | sort -V | uniq | tee en_us.list | awk -F '\t' '{print $1}' > en_us.keys
-awk '{print $0}' lzh.json | sed 1d | tac | sed 1d | tac | sed -E -e 's/^\s+"//' -E -e 's/": /\t/' -E -e 's/,?$//' | sort -V | uniq | tee lzh.list | awk -F '\t' '{print $1}' > lzh.keys
+awk '{print $0}' en_us.json | sed 1d | tac | sed 1d | tac | sed -E -e 's/^\s+"//' -E -e 's/"\s*:\s*/\t/' -E -e 's/,?$//' | sort -V | uniq | tee en_us.list | awk -F '\t' '{print $1}' > en_us.keys
+awk '{print $0}' lzh.json | sed 1d | tac | sed 1d | tac | sed -E -e 's/^\s+"//' -E -e 's/"\s*:\s*/\t/' -E -e 's/,?$//' | sort -V | uniq | tee lzh.list | awk -F '\t' '{print $1}' > lzh.keys
 
 diff en_us.keys lzh.keys | grep -P '^>' | sed 's/^> //' | awk '{print "grep -P \"^"$0"\\t\" lzh.list"}' | sed "s/\"/'/g" | bash | grep -vFf - lzh.list > lzh
 diff en_us.keys lzh.keys | grep -P '^<' | sed 's/^< //' | awk '{print "grep -P \"^"$0"\\t\" en_us.list"}' | sed "s/\"/'/g" | bash | grep -Ff - en_us.list >> lzh
