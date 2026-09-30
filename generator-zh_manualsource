@@ -1,18 +1,8 @@
 #! /bin/bash
 # NameProvider Data Generator, v2.5
 
-# Prep
-curl -Lo version_manifest.json https://piston-meta.mojang.com/mc/game/version_manifest.json
-jq -r .versions[0].url version_manifest.json | xargs curl -Lo version.json
-jq -r .downloads.client.url version.json | xargs curl -Lo client.jar
-unzip -p client.jar assets/minecraft/lang/en_us.json > en_us.json
-jq -r .assetIndex.url version.json | xargs curl -Lo assets.json
-jq .objects assets.json | jq 'to_entries|.[]|select(.key=="minecraft/lang/zh_cn.json")|.value' | jq -r .hash | awk '{print "curl -Lo zh_cn.json https://resources.download.minecraft.net/"substr($0,1,2)"/"$0}' | bash
-jq .objects assets.json | jq 'to_entries|.[]|select(.key=="minecraft/lang/zh_tw.json")|.value' | jq -r .hash | awk '{print "curl -Lo zh_tw.json https://resources.download.minecraft.net/"substr($0,1,2)"/"$0}' | bash
-jq .objects assets.json | jq 'to_entries|.[]|select(.key=="minecraft/lang/zh_hk.json")|.value' | jq -r .hash | awk '{print "curl -Lo zh_hk.json https://resources.download.minecraft.net/"substr($0,1,2)"/"$0}' | bash
-
 # Lua header
-paste <(jq -r .versions[0].id version_manifest.json) <(jq -r .assetIndex.url version.json) <(jq -r .versions[0].time version_manifest.json) | awk -F '\t' "{print \"-- version: \"\$1\"\n-- asset: \"\$2\" (\"\$3\")\nreturn {\n\t[ '_meta.version' ] = \\\"\"\$1\"\\\",\"}" > result.lua
+echo 'return {' > result.lua
 
 # Lua data table
 awk '{print $0}' en_us.json | sed 1d | tac | sed 1d | tac | sed -E -e 's/^\s+"//' -E -e 's/"\s*:\s*/\t/' -E -e 's/,?$//' | sort -V | uniq | tee en_us.list | awk -F '\t' '{print $1}' > en_us.keys
@@ -37,4 +27,4 @@ sort -V en_us.keys | uniq | awk '{print "grep -P \"^"$0"\\t\" result.list"}' | s
 echo '}' >> result.lua
 
 # Cleanup
-rm *.jar *.json *.keys *.list zh_cn zh_tw zh_hk
+rm *.keys *.list zh_cn zh_tw zh_hk
