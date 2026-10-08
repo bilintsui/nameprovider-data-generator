@@ -537,13 +537,39 @@ class GeneratorTests(unittest.TestCase):
                 self.assertNotIn(b"Traceback", result.stderr)
                 self.assertEqual(output.read_bytes(), b"previous output")
 
-    @unittest.skipUnless(shutil.which("sort"), "sort is not installed")
-    def test_version_sort_matches_sort_V(self):
+    def test_version_sort_suffix_edge_cases(self):
+        # Fixed modern GNU ordering, independent of the installed sort version.
+        cases = [
+            ["dl.a", "dl5", "dl.a.", "dl_a"],
+            ["a01.a", "a1.a", "a001.b", "a1.z"],
+            [".0", "..a", ".9", ".a", ".a.b"],
+            ["a~", "a0~", "a", "a0", "a00"],
+        ]
+        for expected in cases:
+            with self.subTest(expected=expected):
+                self.assertEqual(sorted(reversed(expected), key=generator.VersionKey), expected)
+
+    def test_version_sort_matches_gnu_sort_V(self):
+        for name in ("sort", "gnusort"):
+            command = shutil.which(name)
+            if command:
+                version = subprocess.run([command, "--version"], text=True, capture_output=True)
+                if version.returncode == 0 and "(GNU coreutils)" in version.stdout:
+                    break
+        else:
+            self.skipTest("GNU sort is not installed")
+
+        def reference(values):
+            return subprocess.run([command, "-V"], input="\n".join(values) + "\n", text=True, capture_output=True, check=True, env={**os.environ, "LC_ALL": "C.UTF-8"}).stdout.splitlines()
+
         rng = random.Random(5)
         keys = ["", ".", "..", ".a", ".a.b", "a~", "a~1", "a0", "a", "a1", "a01", "a2.b", "a10.b", "a1.0", "a1.a", "a2.a", "a1_a", "a1_2", "a1_10", "a0~", "a00", "𐍈2", "𐍈10", "a.𐍈"]
         keys += ["".join(rng.choice(string.ascii_letters + string.digits + "._~+-") for _ in range(rng.randint(1, 35))) for _ in range(2000)]
-        expected = subprocess.run(["sort", "-V"], input="\n".join(keys) + "\n", text=True, capture_output=True, check=True, env={**os.environ, "LC_ALL": "C.UTF-8"}).stdout.splitlines()
-        self.assertEqual(sorted(keys, key=generator.VersionKey), expected)
+        if reference(["a.b.", "a1"]) == ["a.b.", "a1"]:
+            # GNU 8.32 strips trailing dots as suffixes. Compare shared cases;
+            # the fixed cases above always verify modern suffix ordering.
+            keys = [key for key in keys if key in (".", "..") or not key.endswith(".")]
+        self.assertEqual(sorted(keys, key=generator.VersionKey), reference(keys))
 
 
 if __name__ == "__main__":

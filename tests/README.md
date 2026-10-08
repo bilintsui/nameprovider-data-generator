@@ -15,8 +15,13 @@ sudo apt-get update
 sudo apt-get install --no-install-recommends -y liblua5.1-0 coreutils
 ```
 
-GNU `sort` from `coreutils` enables the optional randomized version-order
-check. The HTTP test needs permission to bind a temporary server to
+GNU `sort` from `coreutils`, named `sort` or `gnusort`, enables the optional
+randomized version-order check. Other implementations, such as uutils, are
+not used as the reference. GNU 8.32 has different trailing-dot suffix rules;
+its randomized comparison excludes those cases. Fixed cases always verify
+modern GNU suffix ordering, including trailing dots and zero-padded numbers.
+
+The HTTP test needs permission to bind a temporary server to
 `127.0.0.1`. These dependencies are only needed for tests; the generator uses
 Python's standard library.
 
