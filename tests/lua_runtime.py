@@ -1,19 +1,24 @@
-"""Small optional Lua runtime adapter for verifying generated table values."""
+"""System Lua 5.1 adapter for verifying generated table values."""
 
 import ctypes
 import ctypes.util
-import os
-import unittest
+
+
+class LuaRuntimeError(RuntimeError):
+    """The required system Lua 5.1 library is missing or unusable."""
 
 
 class LuaTable:
     def __init__(self, source):
-        library = os.environ.get("NAMEPROVIDER_LUA_LIBRARY") or next((name for version in ("lua5.1", "lua-5.1", "lua51") if (name := ctypes.util.find_library(version))), None)
+        library = next((name for version in ("lua5.1", "lua-5.1", "lua51") if (name := ctypes.util.find_library(version))), None)
         if not library:
-            raise unittest.SkipTest("Lua 5.1 shared library is not installed; set NAMEPROVIDER_LUA_LIBRARY to a Lua 5.1 library")
-        self.lua = ctypes.CDLL(library)
+            raise LuaRuntimeError("tests require the system Lua 5.1 shared library; on Debian/Ubuntu, install liblua5.1-0")
+        try:
+            self.lua = ctypes.CDLL(library)
+        except OSError as error:
+            raise LuaRuntimeError(f"cannot load system Lua 5.1 library {library}: {error}") from error
         if not hasattr(self.lua, "lua_pcall"):
-            raise AssertionError(f"{library} does not provide the Lua 5.1 API")
+            raise LuaRuntimeError(f"{library} does not provide the Lua 5.1 API")
         signatures = {
             "luaL_newstate": (ctypes.c_void_p, []),
             "luaL_loadbuffer": (ctypes.c_int, [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_size_t, ctypes.c_char_p]),
@@ -40,7 +45,7 @@ class LuaTable:
             self.lua.lua_getfield(self.state, -10002, b"_VERSION")
             version = self.string()
             if version != "Lua 5.1":
-                raise AssertionError(f"expected Lua 5.1, found {version}")
+                raise LuaRuntimeError(f"expected Lua 5.1, found {version}")
             self.lua.lua_settop(self.state, 0)
             if self.lua.luaL_loadbuffer(self.state, source, len(source), b"result.lua"):
                 raise AssertionError(self.string())

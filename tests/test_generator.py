@@ -20,6 +20,11 @@ from support import ROOT, generator, make_fixture
 
 
 class GeneratorTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        with LuaTable(b"return {}"):
+            pass
+
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix="nameprovider-test-")
         self.addCleanup(self.temporary.cleanup)

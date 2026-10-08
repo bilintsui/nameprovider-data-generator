@@ -2,19 +2,23 @@
 
 Run the commands below from the repository root with Python 3.10+.
 
-Lua execution checks use a Lua 5.1 shared library. On Debian or Ubuntu, install
-the system library with:
+Both the regression suite and the official-data checker require a
+system-installed Lua 5.1 shared library. They fail before running if the
+library is missing, cannot be loaded or does not provide Lua 5.1. The adapter
+uses Python's `ctypes` to load the library and verifies `_VERSION`; it does
+not download or compile a temporary library.
+
+On Debian or Ubuntu, install the test dependencies with:
 
 ```sh
 sudo apt-get update
-sudo apt-get install --no-install-recommends -y liblua5.1-0
+sudo apt-get install --no-install-recommends -y liblua5.1-0 coreutils
 ```
 
-Unit tests skip Lua execution checks when the library is unavailable; the
-official-data checker requires it. `NAMEPROVIDER_LUA_LIBRARY` can select a
-custom library path. The adapter verifies that `_VERSION` is `Lua 5.1`.
-GNU `sort` enables the optional randomized version-order check. The HTTP test
-needs permission to bind a temporary server to `127.0.0.1`.
+GNU `sort` from `coreutils` enables the optional randomized version-order
+check. The HTTP test needs permission to bind a temporary server to
+`127.0.0.1`. These dependencies are only needed for tests; the generator uses
+Python's standard library.
 
 ## Regression suite
 
@@ -25,6 +29,13 @@ python3 -m unittest discover -s tests -v
 Covers CLI behavior, local and HTTP sources, version selection, column order,
 keys and fallback, blocked strings, metadata, encodings, Lua string round-trips
 and the fixed output fixtures under `tests/fixtures/`.
+
+## Continuous integration
+
+The [GitHub Actions workflow](../.github/workflows/tests.yml) runs the regression
+suite on every push, using Python 3.10 and the latest stable Python 3 release
+on Ubuntu 22.04. It installs the system Lua 5.1 library and `coreutils`, then
+verifies the Lua runtime before running the suite.
 
 ## Official data
 

@@ -9,11 +9,10 @@ from pathlib import Path
 import sys
 import tempfile
 import unicodedata
-import unittest
 from urllib.request import urlopen
 from zipfile import ZipFile
 
-from lua_runtime import LuaTable
+from lua_runtime import LuaRuntimeError, LuaTable
 from support import automatic_from_files, generator
 
 
@@ -142,5 +141,5 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except unittest.SkipTest as error:
-        sys.exit(f"Unicode runtime check requires a Lua 5.1 shared library: {error}")
+    except LuaRuntimeError as error:
+        sys.exit(str(error))
