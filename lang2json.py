@@ -17,6 +17,9 @@ URL_ESCAPE_PATTERN = re.compile(r"%[0-9A-Fa-f]{2}")
 LITERAL_PERCENT_EXCEPTIONS = {
     "options.languageWarning": re.compile(r"(?<!%)%100(?![0-9A-Za-z$])"),
 }
+# These editor strings use backslash-n as a line break in the Wiki data.
+# Other keys retain their literal backslashes, including paths and key labels.
+NEWLINE_KEYS = {"resourcePack.editor.customMeshTool.label.meshInfoValue"}
 
 
 class ConversionError(ValueError):
@@ -58,13 +61,17 @@ def parse_lang(data, source, encoding=None):
             continue
         comments = [position for marker in ("##", "\t#") if (position := line.find(marker)) >= 0]
         if comments:
-            # Tabs separate comments; trailing spaces in translations are data.
+            # Tabs separate comments from the translation.
             line = line[:min(comments)].rstrip("\t")
         key, separator, value = line.partition("=")
         if not separator:
             raise ConversionError(f"{source}:{number}: expected KEY=VALUE")
         if not key:
             raise ConversionError(f"{source}:{number}: empty key")
+        # Remove trailing padding without stripping leading or interior whitespace.
+        value = value.rstrip(" \u00a0")
+        if key in NEWLINE_KEYS:
+            value = value.replace(r"\n", "\n")
         records[key] = value
     return records
 
@@ -106,7 +113,7 @@ def translate_parser_string(key, value):
 
 
 def make_parser():
-    parser = argparse.ArgumentParser(description=__doc__, epilog="Without arguments, only help is shown. Input values are preserved unless --translate-parser is selected.")
+    parser = argparse.ArgumentParser(description=__doc__, epilog="Without arguments, only help is shown. Trailing spaces (U+0020) and no-break spaces (U+00A0) are removed from values. The editor mesh-info key's backslash-n sequences become newlines; other backslash sequences are preserved. Format characters are preserved unless --translate-parser is selected.")
     parser.add_argument("-e", "--encoding", type=input_encoding, help="input encoding; otherwise use UTF-8 or BOM-marked UTF-16/32")
     parser.add_argument("-o", "--output", default="-", help="UTF-8 JSON output path; - means STDOUT (default: STDOUT)")
     parser.add_argument("-t", "--translate-parser", action="store_true", help="prepare original Bedrock values once for TranslateParser: adapt single-digit indices and integer markers, and escape literal percent signs")

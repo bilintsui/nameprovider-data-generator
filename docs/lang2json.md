@@ -27,14 +27,18 @@ python3 lang2json.py -o language.json - < input.lang
 ## Parsing and merge rules
 
 - The output contains the union of all input keys. Files are listed from highest to lowest priority: the first file containing a key supplies its value, and later files fill missing keys. An empty value still counts as present. Within each file, the last record for a key wins.
-- Blank lines and whole-line `#` comments are skipped. Inline comments begin at `##` or a literal Tab followed by `#`; the first marker wins. Adjacent Tabs used to separate the comment are removed, but spaces are preserved.
+- Blank lines and whole-line `#` comments are skipped. Inline comments begin at `##` or a literal Tab followed by `#`; the first marker wins. Adjacent Tabs used to separate the comment are removed.
 - The first `=` separates the key and value. Further `=`, single `#`, URLs, `//` and `/* */` text remain part of the value.
+- Every value loses trailing ordinary spaces (U+0020) and no-break spaces (NBSP, U+00A0), including runs that mix the two. This applies with or without `-t`, after comment removal. Leading and interior whitespace, key names and other trailing characters are retained. A value containing only these spaces becomes an empty value and still takes precedence over later files.
 - Input uses physical LF or CRLF lines. Unicode separators, combining characters, invisible characters and private-use characters are preserved, with no Unicode normalization. Only the initial encoding BOM is removed.
-- Format markers such as `%d`, `%.2f`, `%1` and `§a`, and backslash sequences such as literal `\n`, are preserved by default.
+- The exact key `resourcePack.editor.customMeshTool.label.meshInfoValue` has a confirmed newline rule: its literal `\n` sequences become actual LF characters after comment removal and trailing-space cleanup. This applies with or without `-t`. Other keys and backslash sequences such as `\t`, `\r` and `\M` retain their original characters; the script does not decode the whole value as an escape string.
+- Format markers such as `%d`, `%.2f`, `%1` and `§a` are preserved by default.
 
 Invalid encoding, a missing `=`, an empty key or a missing file stops conversion. Malformed records report the file and physical line number. Every input is validated before output is written.
 
 Output is a JSON object of string keys and values, encoded as UTF-8 without BOM with LF line endings. JSON escaping preserves quotes, backslashes and control characters. The terminal's encoding does not change the output encoding.
+
+For the confirmed editor key, the source `.lang` text `first\nsecond` becomes a JSON string `"first\nsecond"` whose decoded value contains a line break. `generator.py` writes the corresponding Lua string as `"first\nsecond"`, so Lua also reads a line break. A literal backslash followed by `n` in other keys is written as `"first\\nsecond"` in JSON and Lua instead.
 
 ## Format characters
 
@@ -115,10 +119,10 @@ Inside a URL with a `scheme://` prefix, a percent sign followed by two hexadecim
 
 ### Content retained
 
-- Values whose keys start with `translation.test.invalid` are unchanged even with `-t`, including their deliberately invalid format markers.
+- Values whose keys start with `translation.test.invalid` keep their deliberately invalid format markers even with `-t`; the ordinary trailing-space cleanup still applies.
 - Standalone `$s`, `$d`, `$f`, `$S`, `$h` and `$` are retained. Literal suffixes are not removed or corrected.
 - Minecraft color and style codes such as `§a`, `§l` and `§r`, and special markers such as `@` and `&…&`, are retained.
-- Literal backslash sequences such as `\n` and `\t` are not expanded. Unicode characters, combining forms, whitespace and control characters are preserved without normalization or trimming.
+- Backslash sequences are retained except for the confirmed editor key's `\n` rule described above; `-t` does not add further backslash processing. Unicode characters and combining forms are preserved without normalization. Leading and interior whitespace, including NBSP, and other trailing characters such as Tabs, Unicode separators and invisible controls are retained; only trailing U+0020 and U+00A0 are removed.
 
 ## Example file order
 

@@ -11,7 +11,7 @@ sudo apt-get update
 sudo apt-get install --no-install-recommends -y liblua5.1-0 coreutils
 ```
 
-GNU `sort` from `coreutils`, named `sort` or `gnusort`, enables the optional randomized version-order check. Other implementations, such as uutils, are not used as the reference. GNU 8.32 has different trailing-dot suffix rules; its randomized comparison excludes those cases. Fixed cases always verify modern GNU suffix ordering, including trailing dots and zero-padded numbers.
+GNU `sort` from `coreutils`, named `sort` or `gnusort`, enables the optional randomized segment-order check. Other implementations, such as uutils, are not used as the reference. The reference converts dots to Tab field separators and uses an explicit `-k` range for each field with `-V`. Fixed cases also cover parents and children, empty segments, zero-padded numbers and the Bedrock keys with underscores that exposed whole-key suffix sorting.
 
 The HTTP test needs permission to bind a temporary server to `127.0.0.1`. These dependencies are only needed for tests; the generator uses Python's standard library.
 
@@ -23,7 +23,7 @@ python3 -m unittest discover -s tests -v
 
 Covers CLI behavior, local and HTTP sources, version selection, column order, keys and fallback, blocked strings, metadata, encodings, Lua string round-trips and the fixed output fixtures under `tests/fixtures/`.
 
-The `.lang` converter tests also cover both comment forms, whitespace and backslash preservation, file and record precedence, BOMs, strict decoding, STDIN/STDOUT and rare Unicode characters in keys and values through JSON and the system Lua 5.1 runtime. TranslateParser preparation tests check single-digit index adaptation, integer markers, literal floating-point text, percent runs, URL encodings and the key-specific percentage exception. They also verify literal suffixes, retained multi-digit typed forms and intentionally invalid test strings, with prepared JSON values checked through generated Lua. Local game data is not required by the suite.
+The `.lang` converter tests also cover both comment forms, trailing U+0020 and NBSP cleanup with and without `-t`, leading and interior whitespace and backslash preservation, the exact editor mesh-info key's newline rule through JSON and Lua in both modes, file and record precedence, BOMs, strict decoding, STDIN/STDOUT and rare Unicode characters in keys and values through JSON and the system Lua 5.1 runtime. TranslateParser preparation tests check single-digit index adaptation, integer markers, literal floating-point text, percent runs, URL encodings and the key-specific percentage exception. They also verify literal suffixes, retained multi-digit typed forms and intentionally invalid test strings, with prepared JSON values checked through generated Lua. Local game data is not required by the suite.
 
 ## Continuous integration
 

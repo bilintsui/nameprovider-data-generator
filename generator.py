@@ -22,7 +22,6 @@ from zipfile import BadZipFile, ZipFile
 DEFAULT_MANIFEST = "https://piston-meta.mojang.com/mc/game/version_manifest.json"
 DEFAULT_ASSETS = "https://resources.download.minecraft.net/"
 LANGUAGE_PATTERN = re.compile(r"[a-z0-9_]+\Z")
-SUFFIX_PATTERN = re.compile(r"(?:\.[A-Za-z~][A-Za-z0-9~]*)+$")
 VERSION_TOKENS = re.compile(r"[0-9]+|[^0-9]")
 
 
@@ -58,20 +57,21 @@ def compare_tokens(left, right):
 
 
 class VersionKey:
-    """The version ordering of `sort -V`, including suffixes and byte ties."""
+    """Natural order within dot-separated key segments, with byte ties."""
 
     def __init__(self, text):
         self.text = text
-        self.category = {"": 0, ".": 1, "..": 2}.get(text, 3 if text.startswith(".") else 4)
-        suffix = SUFFIX_PATTERN.search(text, 1)
-        self.full = token_order(text)
-        self.prefix = token_order(text[:suffix.start()]) if suffix else self.full
+        self.segments = [token_order(segment) for segment in text.split(".")]
 
     def __lt__(self, other):
-        if self.category != other.category:
-            return self.category < other.category
-        comparison = compare_tokens(self.prefix, other.prefix) or compare_tokens(self.full, other.full)
-        return comparison < 0 if comparison else self.text < other.text
+        for left, right in zip(self.segments, other.segments):
+            if bool(left) != bool(right):
+                return not left
+            if comparison := compare_tokens(left, right):
+                return comparison < 0
+        if len(self.segments) != len(other.segments):
+            return len(self.segments) < len(other.segments)
+        return self.text < other.text
 
 
 def language_code(value):

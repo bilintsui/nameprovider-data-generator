@@ -14,6 +14,7 @@ import tempfile
 import threading
 import unittest
 from unittest.mock import patch
+from zipfile import ZipFile
 
 from lua_runtime import LuaTable
 from support import ROOT, generator, make_fixture
@@ -537,19 +538,38 @@ class GeneratorTests(unittest.TestCase):
                 self.assertNotIn(b"Traceback", result.stderr)
                 self.assertEqual(output.read_bytes(), b"previous output")
 
-    def test_version_sort_suffix_edge_cases(self):
-        # Fixed modern GNU ordering, independent of the installed sort version.
+    def test_version_sort_compares_dot_segments(self):
         cases = [
-            ["dl.a", "dl5", "dl.a.", "dl_a"],
+            ["3d_export.include", "3d_export.include_players", "3d_export.off", "3d_export.remove", "3d_export.remove_blocks", "3d_export.reset"],
+            ["a.b", "a.b.c", "a.ba", "a.ba.c", "aa.a"],
+            ["a.02", "a.2", "a.02.2", "a.2.10", "a.10"],
+            ["a.1", "a.1.x", "a.1x", "a.2", "a.10"],
             ["a01.a", "a1.a", "a001.b", "a1.z"],
-            [".0", "..a", ".9", ".a", ".a.b"],
+            ["", ".", "..", ".0", ".a", "a", "a.", "a.0", "a.a"],
             ["a~", "a0~", "a", "a0", "a00"],
+            ["accessibility.game.playerView", "accessibility.gamepad.bumper.left", "accessibility.key.mouseButton", "accessibility.keyboard.leftBracket"],
         ]
         for expected in cases:
             with self.subTest(expected=expected):
                 self.assertEqual(sorted(reversed(expected), key=generator.VersionKey), expected)
 
-    def test_version_sort_matches_gnu_sort_V(self):
+    def test_cli_sorts_segments_without_changing_keys_or_values(self):
+        expected = ["3d_export.include", "3d_export.include_players", "3d_export.off", "a.b", "a.b.c", "a.ba", "item.test2", "item.test10", "literal\tkey.2", "literal\tkey.10"]
+        values = {key: '𠮷 ' + key + ' %s \\n' for key in reversed(expected)}
+        self.files["en_us"].write_text(json.dumps(values, ensure_ascii=False), encoding="utf-8")
+        with ZipFile(self.directory / "client.jar", "w") as archive:
+            archive.write(self.files["en_us"], "assets/minecraft/lang/en_us.json")
+        for mode, arguments in (("manual", ["en_us.json"]), ("auto", ["--manifest", "manifest.json", "--assets-base", "objects", "en_us"])):
+            with self.subTest(mode=mode):
+                result = self.cli(mode, *arguments)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                positions = [result.stdout.index(f"[ {generator.lua_string(key, chr(39))} ] = ".encode()) for key in expected]
+                self.assertEqual(positions, sorted(positions))
+                with LuaTable(result.stdout) as table:
+                    for key, value in values.items():
+                        self.assertEqual(table.row(key, 1), [value])
+
+    def test_version_sort_matches_gnu_sort_V_by_field(self):
         for name in ("sort", "gnusort"):
             command = shutil.which(name)
             if command:
@@ -560,15 +580,15 @@ class GeneratorTests(unittest.TestCase):
             self.skipTest("GNU sort is not installed")
 
         def reference(values):
-            return subprocess.run([command, "-V"], input="\n".join(values) + "\n", text=True, capture_output=True, check=True, env={**os.environ, "LC_ALL": "C.UTF-8"}).stdout.splitlines()
+            fields = max(value.count(".") + 1 for value in values)
+            arguments = [command, "-V", "-t", "\t", *(f"-k{field},{field}" for field in range(1, fields + 1))]
+            data = "\n".join(value.replace(".", "\t") for value in values) + "\n"
+            output = subprocess.run(arguments, input=data, text=True, capture_output=True, check=True, env={**os.environ, "LC_ALL": "C.UTF-8"}).stdout.removesuffix("\n").split("\n")
+            return [value.replace("\t", ".") for value in output]
 
         rng = random.Random(5)
-        keys = ["", ".", "..", ".a", ".a.b", "a~", "a~1", "a0", "a", "a1", "a01", "a2.b", "a10.b", "a1.0", "a1.a", "a2.a", "a1_a", "a1_2", "a1_10", "a0~", "a00", "𐍈2", "𐍈10", "a.𐍈"]
-        keys += ["".join(rng.choice(string.ascii_letters + string.digits + "._~+-") for _ in range(rng.randint(1, 35))) for _ in range(2000)]
-        if reference(["a.b.", "a1"]) == ["a.b.", "a1"]:
-            # GNU 8.32 strips trailing dots as suffixes. Compare shared cases;
-            # the fixed cases above always verify modern suffix ordering.
-            keys = [key for key in keys if key in (".", "..") or not key.endswith(".")]
+        keys = ["", ".", "..", ".a", ".a.b", "a~", "a~1", "a0", "a", "a1", "a01", "a2.b", "a10.b", "a1.0", "a1.a", "a2.a", "a1_a", "a1_2", "a1_10", "a0~", "a00", "𐍈2", "𐍈10", "a.𐍈", "a.02.2", "a.2.10", "a.b.c", "a.ba"]
+        keys += [".".join("".join(rng.choice(string.ascii_letters + string.digits + "_~+-") for _ in range(rng.randint(1, 12))) for _ in range(3)) for _ in range(2000)]
         self.assertEqual(sorted(keys, key=generator.VersionKey), reference(keys))
 
 

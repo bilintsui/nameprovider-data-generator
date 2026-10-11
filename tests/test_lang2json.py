@@ -55,8 +55,8 @@ class LangConversionTests(unittest.TestCase):
             "empty=\t#comment\r\n"
         )
         expected = {
-            "tab": "Text", "multiple": "Text", "inline": "Text", "spaced": "Text ",
-            "spaces": "  Text  ", "first": "Keep", "second": "Keep",
+            "tab": "Text", "multiple": "Text", "inline": "Text", "spaced": "Text",
+            "spaces": "  Text", "first": "Keep", "second": "Keep",
             "hash": "Rank #1 in #channel", "url": "https://example.test/?a=b&c=d#section",
             "slashes": "// literal /* text */", "equals": "a=b=c", "tabs": "Text\t\t", "empty": "",
         }
@@ -66,11 +66,76 @@ class LangConversionTests(unittest.TestCase):
         expected = {
             "formats": "%s %2$s %d %1$d %.2f %1 %% 100% %1 $s §a",
             "url": "https://example.test/%28name%29",
-            "backslash": "\\", "escape": r'line\nnext \" \M \ ',
+            "backslash": "\\", "escape": r'line\nnext \" \M \ ending',
             "next": "separate record",
         }
         contents = "\n".join(f"{key}={value}" for key, value in expected.items())
         self.assertEqual(lang2json.parse_lang(contents.encode(), "literal.lang"), expected)
+
+    def test_confirmed_editor_newlines_are_scoped_to_the_exact_key(self):
+        key = "resourcePack.editor.customMeshTool.label.meshInfoValue"
+        contents = (
+            key + r"=  𠮷 %1$s\n%2$s 三角形\n%3$s %4$s\t\r\M" + " \u00a0\t## note\r\n"
+            + key + r".note=literal\nnext" + "\n"
+            + r"resourcePack.editor.customMeshTool.label.meshInfoValueExtra=literal\nnext" + "\n"
+            + r"literal\nkey=literal\nvalue" + "\n"
+            + r"path=C:\new\textures" + "\n"
+            + "keyboard.keyName.backslash.short=\\\n"
+        )
+        self.assertEqual(lang2json.parse_lang(contents.encode(), "editor.lang"), {
+            key: "  𠮷 %1$s\n%2$s 三角形\n%3$s %4$s" + r"\t\r\M",
+            key + ".note": r"literal\nnext",
+            key + "Extra": r"literal\nnext",
+            r"literal\nkey": r"literal\nvalue",
+            "path": r"C:\new\textures",
+            "keyboard.keyName.backslash.short": "\\",
+        })
+
+    def test_editor_newlines_survive_json_and_lua_with_and_without_t(self):
+        key = "resourcePack.editor.customMeshTool.label.meshInfoValue"
+        self.write("editor.lang", key + r"=%1$s\n%2$d 三角形\n%3$s %4$s" + "\n" + r"literal=line\nnext\t" + "\n")
+        for options, expected in (([], "%1$s\n%2$d 三角形\n%3$s %4$s"), (["-t"], "%1$s\n%2$s 三角形\n%3$s %4$s")):
+            with self.subTest(options=options):
+                converted = self.cli(*options, "editor.lang")
+                self.assertEqual(converted.returncode, 0, converted.stderr)
+                self.assertEqual(json.loads(converted.stdout), {key: expected, "literal": r"line\nnext\t"})
+                self.write("language.json", converted.stdout)
+                result = subprocess.run([sys.executable, str(ROOT / "generator.py"), "manual", "language.json"], cwd=self.directory, capture_output=True, timeout=20)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                with LuaTable(result.stdout) as table:
+                    actual = table.row(key, 1)[0]
+                    self.assertEqual(actual, expected)
+                    self.assertEqual(actual.count("\n"), 2)
+                    self.assertNotIn(r"\n", actual)
+                    self.assertEqual(table.row("literal", 1)[0], r"line\nnext\t")
+
+    def test_trailing_space_cleanup_preserves_other_content(self):
+        contents = (
+            "plain=Height    \r\n"
+            "nbsp=Expand your wardrobe with skins!\u00a0\n"
+            "mixed= \u00a0Inside \u00a0 text \u00a0 \u00a0\n"
+            "comment=  Text \u00a0\t## translator note\n"
+            "empty= \u00a0 \n"
+            "key \u00a0=Value \u00a0\n"
+            "literal=line\\nnext\\t \u00a0\n"
+            "controls=Text\t\u2028\u2029\u200b\ufeff \u00a0\n"
+            "tabs=Text \t\n"
+        )
+        self.assertEqual(lang2json.parse_lang(contents.encode(), "padding.lang"), {
+            "plain": "Height", "nbsp": "Expand your wardrobe with skins!",
+            "mixed": " \u00a0Inside \u00a0 text", "comment": "  Text", "empty": "",
+            "key \u00a0": "Value", "literal": r"line\nnext\t",
+            "controls": "Text\t\u2028\u2029\u200b\ufeff", "tabs": "Text \t",
+        })
+
+    def test_trailing_space_cleanup_with_and_without_format_conversion(self):
+        self.write("vanilla.lang", "value= \u00a0%1 X $d %d %% \u00a0\nempty= \u00a0\ntranslation.test.invalid=hi %  s \u00a0\n")
+        self.write("extra.lang", "empty=Lower priority\nvalue=Lower priority\n")
+        for options, expected in (([], " \u00a0%1 X $d %d %%"), (["-t"], " \u00a0%1$s X $d %s %%%%")):
+            with self.subTest(options=options):
+                result = self.cli(*options, "vanilla.lang", "extra.lang")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(json.loads(result.stdout), {"value": expected, "empty": "", "translation.test.invalid": "hi %  s"})
 
     def test_translate_parser_escapes_literal_percents_and_url_encodings(self):
         cases = (
@@ -327,11 +392,12 @@ class LangConversionTests(unittest.TestCase):
             "ភាសាខ្មែរ", "ᏣᎳᎩ", "ᐃᓄᒃᑎᑐᑦ", "\u200e中文\u200f\u2067العربية\u2069",
             "A\u00a0B\u202fC\u2009D\u3000E", "\ue000\uf8ff\U000f0000\U0010fffd",
             "A\u0085B\u2028C\u2029D", "A\ufeffB", "A\x00B\x01C\x07D\x0bE\x0cF\x7fG",
-            '\\ " \' /* */ // =', "  preserve both ends  ",
+            '\\ " \' /* */ // =', "  preserve leading spaces  ",
         )
         expected = {"键𠮷." + value: value for value in groups if "=" not in value}
         expected.update({"quotes": groups[-2], "é": "precomposed", "e\u0301": "combining"})
         text = "\n".join(f"{key}={value}" for key, value in expected.items()) + "\n"
+        expected["键𠮷." + groups[-1]] = "  preserve leading spaces"
         converted = self.cli("-", input=codecs.BOM_UTF8 + text.encode())
         self.assertEqual(converted.returncode, 0, converted.stderr)
         self.assertEqual(json.loads(converted.stdout), expected)
