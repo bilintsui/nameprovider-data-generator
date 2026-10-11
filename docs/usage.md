@@ -70,7 +70,7 @@ Metadata is optional and must be single-line text. Its format follows [Module:Na
 | First input | Any language can be first; English is optional. |
 | Row order | Compare dot-separated key segments from left to right with natural ordering; compare the next segment when the current segments are equal. |
 
-Digit runs within each segment compare by numeric value, so `item.test2` precedes `item.test10`. A key precedes its children when all shared segments are equal: `a.b` precedes `a.b.c`, which precedes `a.ba`. Dots are separators rather than filename suffixes, so `3d_export.include_players` stays between `3d_export.include` and `3d_export.off`. Zero-padded numeric runs with equal values continue to the next segment; if every segment compares equally, the complete key breaks the tie by byte order. Keys and values themselves are retained exactly.
+Digit runs within each segment compare by numeric value: `item.test2` precedes `item.test10`. A key precedes its children when all shared segments are equal: `a.b` precedes `a.b.c`, which precedes `a.ba`. Dots separate segments; for example, the order is `3d_export.include`, `3d_export.include_players`, `3d_export.off`. Zero-padded numeric runs with equal values continue to the next segment; if every segment compares equally, the complete key breaks the tie by byte order. Keys and values themselves are retained exactly.
 
 ## Encoding and output
 

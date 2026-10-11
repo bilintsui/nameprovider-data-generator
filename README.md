@@ -41,7 +41,7 @@ python3 lang2json.py -t -o en_US.json vanilla.lang extra.lang
 python3 generator.py -o names.lua manual en_US.json zh_CN.json zh_TW.json
 ```
 
-Every conversion removes trailing ordinary spaces (U+0020) and no-break spaces (NBSP, U+00A0) from values; leading and interior whitespace is retained. In `resourcePack.editor.customMeshTool.label.meshInfoValue`, literal `\n` sequences become actual line breaks, with or without `-t`; other backslash sequences are preserved. Ordinary conversion preserves format characters. `-t, --translate-parser` prepares original Bedrock values once: it adapts single-digit bare indices and integer markers, and escapes literal percent signs, including consecutive percents, floating-point text and URL encodings. Literal suffixes and parameter order are retained.
+Every conversion removes trailing ordinary spaces (U+0020) and no-break spaces (NBSP, U+00A0) from values; leading and interior whitespace is retained. Ordinary conversion preserves format characters. `-t, --translate-parser` prepares original Bedrock values once: it adapts single-digit bare indices and integer markers, and escapes literal percent signs, including consecutive percents, floating-point text and URL encodings. Literal suffixes and parameter order are retained.
 
 See [converter usage](docs/lang2json.md) for options, comment and merge rules, the format conversion table and file-order examples. Convert each language separately before running `generator.py manual`.
 
