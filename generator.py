@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate Java Edition NameProvider Lua data using only the standard library."""
+"""Generate NameProvider Lua data for Java or Bedrock Edition using only the standard library."""
 
 import argparse
 import codecs
@@ -367,7 +367,7 @@ def make_parser():
     parser = argparse.ArgumentParser(description=__doc__, add_help=False, formatter_class=HelpFormatter, epilog="Without a subcommand, only this help is shown; no data is downloaded or written.")
     add_global_options(parser)
     subparsers = parser.add_subparsers(dest="mode")
-    auto = subparsers.add_parser("auto", add_help=False, formatter_class=HelpFormatter, help="download a Minecraft version and its language data")
+    auto = subparsers.add_parser("auto", add_help=False, formatter_class=HelpFormatter, help="download Java Edition language data")
     add_global_options(auto, defaults=False)
     auto.add_argument("-l", "--list-versions", action="store_true", help="list manifest version IDs, types and release times without downloading game data")
     auto.add_argument("-v", "--version", default="latest", help="version ID, latest (first manifest entry), latest-release, or latest-snapshot")

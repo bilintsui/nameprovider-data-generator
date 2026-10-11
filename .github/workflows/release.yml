@@ -25,14 +25,14 @@ jobs:
       - name: Prepare release assets
         run: |
           mkdir -p "$RUNNER_TEMP/release-assets"
-          cp generator.py generatorBE_lite "$RUNNER_TEMP/release-assets/"
+          cp generator.py lang2json.py "$RUNNER_TEMP/release-assets/"
 
       - name: Publish release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          assets=("$RUNNER_TEMP/release-assets/generator.py" "$RUNNER_TEMP/release-assets/generatorBE_lite")
+          assets=("$RUNNER_TEMP/release-assets/generator.py" "$RUNNER_TEMP/release-assets/lang2json.py")
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber
           else

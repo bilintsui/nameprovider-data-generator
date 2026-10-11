@@ -1,4 +1,6 @@
-# Java Edition usage
+# Lua generator usage
+
+`generator.py` generates NameProvider Lua data for Java and Bedrock Edition. Requires Python 3.10+ and only its standard library. Output is compatible with Lua 5.1. Automatic mode downloads Java Edition data; manual mode accepts local language JSON files for either edition.
 
 ## Global options
 
@@ -10,8 +12,7 @@
 | `-b, --blocked-strings KEYS` | None | Comma-separated exact keys whose later columns must use the first input's value. |
 | `-B, --blocked-strings-file FILE` | None | Read one blocked key per line from a file; `-` reads STDIN. |
 
-Global options can appear before or after the subcommand. Running without a
-subcommand only shows help and does not download data or create files.
+Global options can appear before or after the subcommand. Running without a subcommand only shows help and does not download data or create files.
 
 ## Automatic mode
 
@@ -19,10 +20,7 @@ subcommand only shows help and does not download data or create files.
 python3 generator.py [GLOBAL_OPTIONS] auto [OPTIONS] [LANGUAGE ...]
 ```
 
-Download language data for Java Edition 1.13+. Generating output requires at
-least one language code; there are no default languages. Every requested
-language must exist in the selected version. The output includes version and
-asset comments and `_meta.version`.
+Download language data for Java Edition 1.13+. Generating output requires at least one language code; there are no default languages. Every requested language must exist in the selected version. The output includes version and asset comments and `_meta.version`.
 
 ### Mode options
 
@@ -49,8 +47,7 @@ asset comments and `_meta.version`.
 python3 generator.py [GLOBAL_OPTIONS] manual [OPTIONS] JSON [JSON ...]
 ```
 
-Read one or more local language JSON files. Filenames and language codes have
-no special meaning, and input files are retained.
+Read one or more local language JSON files for Java or Bedrock Edition. Bedrock `.lang` files can first be converted with [`lang2json.py`](lang2json.md). Filenames and language codes have no special meaning, and input files are retained. Values are serialized as supplied; the generator does not adapt format markers.
 
 ### Mode options
 
@@ -61,8 +58,7 @@ no special meaning, and input files are retained.
 | `--asset TEXT` | Omitted | Write asset source text to the `-- asset:` comment. |
 | `--asset-note TEXT` | Omitted | Add a parenthesized annotation, such as a timestamp, to the asset comment; requires `--asset`. |
 
-Metadata is optional and must be single-line text. Its format follows
-[Module:NameProvider/snapshot](https://zh.minecraft.wiki/w/Module:NameProvider/snapshot?action=raw).
+Metadata is optional and must be single-line text. Its format follows [Module:NameProvider/snapshot](https://zh.minecraft.wiki/w/Module:NameProvider/snapshot?action=raw).
 
 ## Data rules
 
@@ -76,43 +72,25 @@ Metadata is optional and must be single-line text. Its format follows
 
 ## Encoding and output
 
-Language JSON is decoded strictly. UTF-8, UTF-16 and UTF-32, with or without
-BOM, are detected automatically. `--encoding` applies only to language data;
-manifests, version metadata and asset indexes detect their own JSON encoding.
-JSON Unicode escapes and surrogate pairs are decoded without normalization;
-unpaired surrogates are rejected.
+Language JSON is decoded strictly. UTF-8, UTF-16 and UTF-32, with or without BOM, are detected automatically. `--encoding` applies only to language data; manifests, version metadata and asset indexes detect their own JSON encoding. JSON Unicode escapes and surrogate pairs are decoded without normalization; unpaired surrogates are rejected.
 
-Output uses UTF-8 without BOM and LF line endings, including when the terminal
-uses another encoding. Strings are escaped for Lua 5.1, with decimal escapes
-for control characters that have no short escape. JSON-only `\uXXXX` escapes
-become actual characters. Use `-o FILE` to write a file or `-o -` for STDOUT.
+Output uses UTF-8 without BOM and LF line endings, including when the terminal uses another encoding. Strings are escaped for Lua 5.1, with decimal escapes for control characters that have no short escape. JSON-only `\uXXXX` escapes become actual characters. Use `-o FILE` to write a file or `-o -` for STDOUT.
 
 ## Sources and downloads
 
-Version metadata, asset indexes and clients follow the locations in the
-manifest and its linked metadata. Relative locations resolve against the
-referring URL or file.
+Version metadata, asset indexes and clients follow the locations in the manifest and its linked metadata. Relative locations resolve against the referring URL or file.
 
-Language objects use `<first two hash characters>/<full hash>` under
-`--assets-base`. A local manifest and object directory can supply an entirely
-offline download tree.
+Language objects use `<first two hash characters>/<full hash>` under `--assets-base`. A local manifest and object directory can supply an entirely offline download tree.
 
-The client archive is downloaded only when `en_us` is requested. It is read
-in a temporary directory that is removed afterward.
+The client archive is downloaded only when `en_us` is requested. It is read in a temporary directory that is removed afterward.
 
 ## Blocked strings
 
-The comma-separated and file sources can be combined; duplicate keys are
-removed. Matching keys keep their first-input value in every later column.
-Unmatched keys are ignored. Case, whitespace and Unicode are preserved for
-exact matching.
+The comma-separated and file sources can be combined; duplicate keys are removed. Matching keys keep their first-input value in every later column. Unmatched keys are ignored. Case, whitespace and Unicode are preserved for exact matching.
 
-Key files and STDIN accept UTF-8 with an optional BOM, or BOM-marked UTF-16/32,
-independently of `--encoding`. LF and CRLF line endings are supported. Blank
-lines and empty comma-separated entries are ignored.
+Key files and STDIN accept UTF-8 with an optional BOM, or BOM-marked UTF-16/32, independently of `--encoding`. LF and CRLF line endings are supported. Blank lines and empty comma-separated entries are ignored.
 
-Matched names are sorted by key name in a comment after the metadata and
-before `return {`:
+Matched names are sorted by key name in a comment after the metadata and before `return {`:
 
 ```lua
 --[[
@@ -122,8 +100,7 @@ BLOCKED STRINGS
 ]]
 ```
 
-No block comment is added when no keys match. Version listing does not read
-blocked-list files or STDIN.
+No block comment is added when no keys match. Version listing does not read blocked-list files or STDIN.
 
 ## Examples
 
@@ -156,6 +133,19 @@ python3 generator.py -o names.lua manual -v 26.4-snapshot-3 \
     --asset-note 2026-10-06T13:00:46+00:00 \
     en_us.json zh_cn.json zh_tw.json zh_hk.json
 ```
+
+### Bedrock language files
+
+Convert each language's `.lang` data into JSON, then use manual mode:
+
+```sh
+python3 lang2json.py -t -o en_US.json texts/en_US.lang
+python3 lang2json.py -t -o zh_CN.json texts/zh_CN.lang
+python3 lang2json.py -t -o zh_TW.json texts/zh_TW.lang
+python3 generator.py -o names.lua manual en_US.json zh_CN.json zh_TW.json
+```
+
+See [converter usage](lang2json.md) for merging multiple files and format character preparation.
 
 ### Blocked lists
 
