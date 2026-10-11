@@ -11,7 +11,7 @@ sudo apt-get update
 sudo apt-get install --no-install-recommends -y liblua5.1-0 coreutils
 ```
 
-GNU `sort` from `coreutils`, named `sort` or `gnusort`, enables the optional randomized segment-order check. Other implementations, such as uutils, are not used as the reference. The reference converts dots to Tab field separators and uses an explicit `-k` range for each field with `-V`. Fixed cases also cover parents and children, empty segments, zero-padded numbers and the Bedrock keys with underscores that exposed whole-key suffix sorting.
+GNU `sort` from `coreutils`, named `sort` or `gnusort`, enables the optional randomized segment-order check. Other implementations, such as uutils, are not used as the reference. The reference converts dots to Tab field separators and uses an explicit `-k` range for each field with `-V`. A behavior probe detects older GNU versions that resolve numeric field ties before comparing the next field; their randomized reference excludes zero-leading numeric runs. Fixed cases always verify the intended ordering for zero and zero-padded numbers, as well as parents and children, empty segments and the Bedrock keys with underscores that exposed whole-key suffix sorting.
 
 The HTTP test needs permission to bind a temporary server to `127.0.0.1`. These dependencies are only needed for tests; the generator uses Python's standard library.
 

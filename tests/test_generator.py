@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import random
+import re
 import shutil
 import string
 import subprocess
@@ -545,6 +546,8 @@ class GeneratorTests(unittest.TestCase):
             ["a.02", "a.2", "a.02.2", "a.2.10", "a.10"],
             ["a.1", "a.1.x", "a.1x", "a.2", "a.10"],
             ["a01.a", "a1.a", "a001.b", "a1.z"],
+            ["A0.Z", "A.a", "A.b"],
+            ["a1.a", "a01.z"],
             ["", ".", "..", ".0", ".a", "a", "a.", "a.0", "a.a"],
             ["a~", "a0~", "a", "a0", "a00"],
             ["accessibility.game.playerView", "accessibility.gamepad.bumper.left", "accessibility.key.mouseButton", "accessibility.keyboard.leftBracket"],
@@ -589,6 +592,11 @@ class GeneratorTests(unittest.TestCase):
         rng = random.Random(5)
         keys = ["", ".", "..", ".a", ".a.b", "a~", "a~1", "a0", "a", "a1", "a01", "a2.b", "a10.b", "a1.0", "a1.a", "a2.a", "a1_a", "a1_2", "a1_10", "a0~", "a00", "𐍈2", "𐍈10", "a.𐍈", "a.02.2", "a.2.10", "a.b.c", "a.ba"]
         keys += [".".join("".join(rng.choice(string.ascii_letters + string.digits + "_~+-") for _ in range(rng.randint(1, 12))) for _ in range(3)) for _ in range(2000)]
+        probes = (["a0.a", "a.z"], ["a1.a", "a01.z"])
+        if any(reference(values) != values for values in probes):
+            # Older GNU sort resolves numeric field ties before the next field.
+            # Compare shared cases; fixed cases above always cover zero runs.
+            keys = [key for key in keys if not re.search(r"(?<![0-9])0", key)]
         self.assertEqual(sorted(keys, key=generator.VersionKey), reference(keys))
 
 
